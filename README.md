@@ -1,4 +1,5 @@
 ﻿# DevPilot Sandbox 🛡️
+ 看到最后呦
 
 > **给 AI 钥匙，而不是拆掉围墙。**  
 > 面向 AI Agent 的本地安全执行沙箱中间件——基于角色的文件、命令权限控制。
@@ -170,3 +171,81 @@ mvn test
 ## 📜 许可证
 
 Apache 2.0
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+爱发电
+
+
+
+
+
+
+
+
+
+
+
+
+
+<img width="571" height="572" alt="mm_facetoface_collect_qrcode_1782390475437" src="https://github.com/user-attachments/assets/c1123efa-b42a-48c4-80b2-5ac0c8e394f5" />
+
