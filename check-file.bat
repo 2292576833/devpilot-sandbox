@@ -1,0 +1,2 @@
+@echo off
+node -e "var path='%*';var http=require('http');var d=JSON.stringify({roleId:'CODE_ENGINEER',path:path});var r=http.request({hostname:'127.0.0.1',port:9091,path:'/api/v1/guard/file-read',method:'POST',headers:{'Content-Type':'application/json'}},function(res){var b='';res.on('data',function(c){b+=c});res.on('end',function(){console.log(JSON.stringify(JSON.parse(b),null,2))})});r.write(d);r.end()"

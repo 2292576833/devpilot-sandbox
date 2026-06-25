@@ -1,0 +1,37 @@
+﻿# Java
+target/
+*.class
+*.jar
+*.war
+*.log
+
+# Maven
+.maven/repository/
+.maven/apache-maven-*/bin/
+
+# IDE
+.vscode/
+.idea/
+*.iml
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Temp
+logs/audit.jsonl*
+logs/devpilot-sandbox.log
+logs/versions/
+data/roles-state.json
+test-data.txt
+*.tmp
+
+# Extension
+extensions/*.vsix
+extensions/_tmp_*/
+
+# Env
+.env.local
+.env.production

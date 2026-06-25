@@ -1,0 +1,651 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DevPilot Sandbox 安全沙箱控制台</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="app">
+  <div class="app-container">
+    <div class="app-sidebar">
+      <div class="logo">DevPilot <span>安全沙箱</span></div>
+      <div class="nav-list">
+        <div class="nav-item active" data-page="dashboard" onclick="switchPage('dashboard')">📊 仪表盘</div>
+        <div class="nav-item" data-page="test" onclick="switchPage('test')">🧪 安全测试</div>
+        <div class="nav-item" data-page="audit" onclick="switchPage('audit')">📋 审计日志</div>
+        <div class="nav-item" data-page="stats" onclick="switchPage('stats')">🛡️ 拦截统计</div>
+        <div class="nav-item" data-page="about" onclick="switchPage('about')">ℹ️ 关于</div>
+        <div class="nav-item" data-page="roles" onclick="switchPage('roles')">⚙️ 角色管理</div>
+        <div class="nav-item" data-page="config" onclick="switchPage('config')">🔧 系统配置</div>
+      </div>
+    </div>
+    <div class="app-main">
+      <div class="app-header">
+        <span id="pageTitle">仪表盘</span>
+        <span class="status-badge" id="statusBadge">检测中...</span>
+      </div>
+      <div id="pageContent" class="app-content">
+        <div class="loading">加载中...</div>
+      </div>
+    </div>
+  </div>
+</div>
+<!-- Scripts -->
+<script src="vendor/vue.global.prod.js"></script>
+<script src="vendor/element-plus.full.min.js"></script>
+<script src="vendor/element-plus.css"></script>
+<script src="app.js"></script>
+
+
+<script>
+const API = window.location.origin;
+
+async function api(path, opts) {
+  const r = await fetch(API + path, { headers: { "Content-Type": "application/json" }, ...opts });
+  if (!r.ok) { const t = await r.text(); throw new Error(t); }
+  return r.json();
+}
+
+var refreshTimer = null;
+function qs(id) { return document.getElementById(id); }
+
+// ── 页面导航 ──
+function switchPage(page) {
+  if (refreshTimer) { clearInterval(refreshTimer); refreshTimer = null; }
+  document.querySelectorAll(".nav-item").forEach(el => el.classList.remove("active"));
+  document.querySelector(`.nav-item[data-page="${page}"]`).classList.add("active");
+  const titles = {dashboard:"仪表盘", test:"安全测试", audit:"审计日志",roles:"角色管理",config:"系统配置", about:"关于"};
+  qs("pageTitle").textContent = titles[page] || "DevPilot";
+  qs("pageContent").innerHTML = "<div class='loading'>加载中...</div>";
+  if (page === "dashboard") renderDashboard();
+  else if (page === "test") renderTest();
+  else if (page === "audit") renderAudit();
+  else if (page === "stats") renderStats();
+  else if (page === "about") renderAbout();
+  else if (page === "roles") renderRoles();
+  else if (page === "config") renderConfig();
+}
+
+// ── 通用工具 ──
+function copyText(text) {
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(text);
+  }
+}
+
+// ── 仪表盘 ──
+async function renderDashboard() {
+  try {
+    var h = await api("/api/v1/guard/health");
+    var roles = await api("/api/v1/policy/roles");
+    var html = `<div style="display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap">
+      <div class="card" style="flex:1;min-width:120px;text-align:center;border-left:4px solid #67c23a">
+        <h4 style="margin:0;color:#909399;font-size:12px">状态</h4>
+        <p style="font-size:28px;font-weight:bold;margin:4px 0;color:#67c23a">${h.status}</p>
+      </div>
+      <div class="card" style="flex:1;min-width:120px;text-align:center;border-left:4px solid #409eff">
+        <h4 style="margin:0;color:#909399;font-size:12px">模式</h4>
+        <p style="font-size:28px;font-weight:bold;margin:4px 0;color:#409eff">${h.mode||"multi"}</p>
+      </div>
+      <div class="card" style="flex:1;min-width:120px;text-align:center;border-left:4px solid #e6a23c">
+        <h4 style="margin:0;color:#909399;font-size:12px">角色</h4>
+        <p style="font-size:28px;font-weight:bold;margin:4px 0;color:#e6a23c">${(h.roles||[]).length}</p>
+      </div>
+      <div class="card" style="flex:1;min-width:120px;text-align:center;border-left:4px solid #909399">
+        <h4 style="margin:0;color:#909399;font-size:12px">版本</h4>
+        <p style="font-size:22px;font-weight:bold;margin:4px 0">${h.version}</p>
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap">
+      <button class="btn" onclick="switchPage('test')" style="background:#409eff;color:#fff">🧪 安全测试</button>
+      <button class="btn" onclick="switchPage('roles')" style="background:#67c23a;color:#fff">⚙️ 角色管理</button>
+      <button class="btn" onclick="switchPage('config')" style="background:#909399;color:#fff">🔧 系统配置</button>
+      <button class="btn" onclick="switchPage('audit')" style="background:#e6a23c;color:#fff">📋 拦截记录</button>
+    </div>`;
+    if (roles && roles.length > 0) {
+      html += `<div class="card"><h3 style="margin-top:0">角色列表</h3><table class="data-table">
+        <tr><th>角色</th><th>工作目录</th><th>只读</th><th>命令</th></tr>`;
+      roles.forEach(function(r) {
+        var cmds = (r.allowedCommands||[]).map(function(c){return c.command}).join(", ") || "-";
+        html += `<tr><td>${r.id}</td><td style="font-size:12px">${r.workDir}</td><td>${r.readonly?"🔴只读":"🟢可写"}</td><td style="font-size:11px">${cmds}</td></tr>`;
+      });
+      html += `</table></div>`;
+    }
+    html += `<div class="card" style="font-size:12px;color:#909399">
+      <span>策略源: ${h.policySource}</span>
+      <span style="margin-left:16px">加载: ${new Date(h.lastLoaded).toLocaleString()}</span>
+    </div>`;
+    if (qs("pageContent")) qs("pageContent").innerHTML = html;
+  } catch(e) {
+    if (qs("pageContent")) qs("pageContent").innerHTML = `<div class="error">❌ 加载失败: ${e.message}</div>`;
+  }
+}
+
+async function refreshDashboard() {
+  qs("pageContent").innerHTML = "<div class='loading'>刷新中...</div>";
+  renderDashboard();
+}
+
+// ── 安全测试 ──
+function renderTest() {
+  const role = "CODE_ENGINEER";
+  qs("pageContent").innerHTML = `
+    <div class="card">
+      <div class="card-header"><h3>📂 文件读取测试</h3></div>
+      <div class="form-row">
+        <label>角色</label><input id="r1" value="${role}" class="input" style="width:160px"/>
+      </div>
+      <div class="form-row">
+        <label>路径</label><input id="p1" value="src/Main.java" class="input" style="width:300px" onkeydown="if(event.key==='Enter')testRead()"/>
+      </div>
+      <div class="btn-row">
+        <button onclick="testRead()" class="btn">✅ 测试读文件</button>
+        <button onclick="testWrite()" class="btn btn-warn">📝 测试写文件</button>
+        <button onclick="testPathEscape()" class="btn btn-danger">🔓 测试路径穿越</button>
+      </div>
+      <pre id="r1Result" class="result">点击按钮测试 API ...</pre>
+    </div>
+    <div class="card">
+      <div class="card-header"><h3>⚡ 命令执行测试</h3></div>
+      <div class="form-row">
+        <label>角色</label><input id="r2" value="${role}" class="input" style="width:160px"/>
+      </div>
+      <div class="form-row">
+        <label>命令</label><input id="c1" value="git status" class="input" style="width:300px" onkeydown="if(event.key==='Enter')testCmd(1)"/>
+      </div>
+      <div class="form-row">
+        <label>禁止参数</label><input id="c2" value="npm install -g express" class="input" style="width:300px" onkeydown="if(event.key==='Enter')testCmd(2)"/>
+      </div>
+      <div class="btn-row">
+        <button onclick="testCmd(1)" class="btn">✅ 测试命令</button>
+        <button onclick="testCmd(2)" class="btn btn-danger">🚫 测试禁止参数</button>
+      </div>
+      <pre id="r2Result" class="result">点击按钮测试 API ...</pre>
+    </div>
+  `;
+}
+
+async function testRead() {
+  const role = qs("r1").value || "CODE_ENGINEER";
+  const path = qs("p1").value || "src/Main.java";
+  try {
+    const r = await api("/api/v1/guard/file-read", { method: "POST", body: JSON.stringify({roleId:role, path:path}) });
+    qs("r1Result").textContent = JSON.stringify(r, null, 2);
+  } catch(e) { qs("r1Result").textContent = "❌ 请求失败: " + e.message; }
+}
+
+async function testWrite() {
+  const role = qs("r1").value || "CODE_ENGINEER";
+  const path = qs("p1").value || "src/output.txt";
+  try {
+    const r = await api("/api/v1/guard/file-write", { method: "POST", body: JSON.stringify({roleId:role, path:path}) });
+    qs("r1Result").textContent = JSON.stringify(r, null, 2);
+  } catch(e) { qs("r1Result").textContent = "❌ 请求失败: " + e.message; }
+}
+
+async function testPathEscape() {
+  const role = qs("r1").value || "CODE_ENGINEER";
+  try {
+    const r = await api("/api/v1/guard/file-read", { method: "POST", body: JSON.stringify({roleId:role, path:"../../etc/passwd"}) });
+    qs("r1Result").textContent = JSON.stringify(r, null, 2);
+  } catch(e) { qs("r1Result").textContent = "❌ 请求失败: " + e.message; }
+}
+
+async function testCmd(idx) {
+  const role = qs("r2").value || "CODE_ENGINEER";
+  const cmd = qs("c" + idx).value || "git status";
+  try {
+    const r = await api("/api/v1/guard/command-run", { method: "POST", body: JSON.stringify({roleId:role, command:cmd}) });
+    qs("r2Result").textContent = JSON.stringify(r, null, 2);
+  } catch(e) { qs("r2Result").textContent = "❌ 请求失败: " + e.message; }
+}
+
+// ── 审计日志 ──
+// ── 拦截记录详细 ──
+function renderAudit() {
+  qs("pageContent").innerHTML = `
+    <div>
+      <div class="card-header"><h3>🛡️ 拦截记录</h3></div>
+      <div class="stat-cards" style="display:flex;gap:12px;margin:12px 0">
+        <div class="card" style="flex:1;text-align:center"><h4>总计</h4><p class="big" id="atTotal" style="font-size:28px">-</p></div>
+        <div class="card" style="flex:1;text-align:center;border-left:4px solid #67c23a"><h4>已允许</h4><p class="big" id="atOk" style="font-size:28px;color:#67c23a">-</p></div>
+        <div class="card" style="flex:1;text-align:center;border-left:4px solid #f56c6c"><h4>已拦截</h4><p class="big" id="atBlock" style="font-size:28px;color:#f56c6c">-</p></div>
+      </div>
+      <div class="form-row" style="gap:8px;flex-wrap:wrap">
+        <input id="aRole" placeholder="角色 (模糊)" class="input" style="width:130px"/>
+        <select id="aOp" class="input" style="width:130px">
+          <option value="">全部操作</option>
+          <option value="file-read">📖 文件读取</option>
+          <option value="file-write">✏️ 文件写入</option>
+          <option value="command-run">⚡ 命令执行</option>
+        </select>
+        <select id="aStatus" class="input" style="width:110px">
+          <option value="">全部状态</option>
+          <option value="true">✅ 已允许</option>
+          <option value="false">❌ 已拦截</option>
+        </select>
+        <input id="aLimit" value="200" class="input" style="width:80px" title="加载条数"/>
+        <button onclick="loadAudit()" class="btn" style="background:#409eff;color:#fff">🔍 查询</button>
+        <button onclick="clearAuditFilter()" class="btn-sm">🧹 清除</button>
+        <button onclick="exportAuditCsv()" class="btn-sm">📥 导出CSV</button>
+      </div>
+      <div id="aResult" style="margin-top:12px"></div>
+    </div>`;
+  loadAudit();
+}
+
+async function loadAudit() {
+  const role = qs("aRole").value;
+  const op = qs("aOp").value;
+  const limit = qs("aLimit").value || 200;
+  const params = new URLSearchParams();
+  if (role) params.set("role", role);
+  if (op) params.set("operation", op);
+  params.set("limit", limit);
+  try {
+    const r = await api("/api/v1/guard/audit?" + params.toString());
+    const entries = (r.entries || []).map(e => { try { return JSON.parse(e); } catch { return null; } }).filter(Boolean);
+    
+    // 统计
+    const total = entries.length;
+    const allowed = entries.filter(e => e.allowed === true).length;
+    const blocked = entries.filter(e => e.allowed === false).length;
+    if (qs("atTotal")) qs("atTotal").textContent = total;
+    if (qs("atOk")) qs("atOk").textContent = allowed;
+    if (qs("atBlock")) qs("atBlock").textContent = blocked;
+    
+    // 状态筛选
+    const st = qs("aStatus").value;
+    const filtered = st !== "" ? entries.filter(e => String(e.allowed) === st) : entries;
+    
+    if (filtered.length === 0) {
+      qs("aResult").innerHTML = '<div class="hint" style="text-align:center;padding:40px;color:#999">暂无拦截记录</div>';
+      return;
+    }
+    
+    let html = `<table class="data-table" style="width:100%;font-size:13px">
+      <tr style="background:#f5f7fa">
+        <th style="white-space:nowrap">时间</th>
+        <th>操作</th>
+        <th>角色</th>
+        <th style="width:80px">状态</th>
+        <th>原因 / 详情</th>
+      </tr>`;
+    
+    filtered.forEach(e => {
+      const ts = e.timestamp ? new Date(e.timestamp).toLocaleString('zh-CN') : '-';
+      const opDisplay = { 'file-read':'📖读取','file-write':'✏️写入','command-run':'⚡命令' }[e.operation] || e.operation;
+      const bg = e.allowed ? 'background:#f0f9eb' : 'background:#fef0f0';
+      const statusText = e.allowed ? '✅ 允许' : '❌ 拦截';
+      const statusColor = e.allowed ? '#67c23a' : '#f56c6c';
+      const reason = e.reason || (e.allowed ? '-' : '无权限');
+      let detailsHtml = '';
+      if (e.details) {
+        detailsHtml = Object.entries(e.details).map(([k,v]) => `<span style="color:#606266">${k}=</span><span style="color:#409eff">${typeof v === 'string' ? v : JSON.stringify(v)}</span>`).join(' ');
+      }
+      html += `<tr style="${bg}">
+        <td style="white-space:nowrap;font-size:12px;color:#909399">${ts}</td>
+        <td style="font-weight:500">${opDisplay}</td>
+        <td><code style="background:#eee;padding:2px 6px;border-radius:3px;font-size:12px">${e.roleId||'-'}</code></td>
+        <td style="font-weight:bold;color:${statusColor}">${statusText}</td>
+        <td style="font-size:12px;max-width:350px">
+          ${reason !== '-' ? `<div style="margin-bottom:2px">${reason}</div>` : ''}
+          ${detailsHtml ? `<div style="color:#909399;font-size:11px;margin-top:2px">📎 ${detailsHtml}</div>` : ''}
+        </td>
+      </tr>`;
+    });
+    html += '</table>';
+    qs("aResult").innerHTML = html;
+  } catch(e) {
+    qs("aResult").innerHTML = '<div class="error">❌ 查询失败: ' + e.message + '</div>';
+  }
+}
+
+function clearAuditFilter() {
+  if (qs("aRole")) qs("aRole").value = '';
+  if (qs("aOp")) qs("aOp").value = '';
+  if (qs("aStatus")) qs("aStatus").value = '';
+  if (qs("aLimit")) qs("aLimit").value = '200';
+  loadAudit();
+}
+
+function exportAuditCsv() {
+  const rows = [['时间','操作','角色','允许','原因','详情']];
+  try {
+    const resultEl = qs("aResult");
+    const table = resultEl?.querySelector('table');
+    if (table) {
+      const trs = table.querySelectorAll('tr');
+      for (let i = 1; i < trs.length; i++) {
+        const tds = trs[i].querySelectorAll('td');
+        if (tds.length >= 5) {
+          rows.push([
+            tds[0].textContent.trim(),
+            tds[1].textContent.trim(),
+            tds[2].textContent.trim(),
+            tds[3].textContent.trim(),
+            tds[4].textContent.trim().replace(/\n/g,' ')
+          ]);
+        }
+      }
+    }
+  } catch(e) {}
+  const csv = rows.map(r => r.map(c => '"'+c.replace(/"/g,'""')+'"').join(',')).join('\n');
+  const blob = new Blob([csv], {type:'text/csv;charset=utf-8'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url; a.download = 'devpilot-audit-'+new Date().toISOString().slice(0,10)+'.csv'; a.click();
+  URL.revokeObjectURL(url);
+}
+
+// ── 关于 ──
+function renderAbout() {
+  qs("pageContent").innerHTML = `
+    <div class="card">
+      <h3>关于 DevPilot Sandbox</h3>
+      <p class="about-text">面向 AI Agent 的本地安全执行沙箱中间件。<br>提供基于角色和策略的文件、命令围栏，实现"给 AI 钥匙而不是拆掉围墙"。</p>
+    </div>
+    <div class="card">
+      <h3>快速入门</h3>
+      <div class="about-text">
+        <p><b>集成到 AI Agent</b></p>
+        <p>在 AI Agent 操作文件或执行命令前，先调用 DevPilot API 校验权限：</p>
+        <pre class="code-block">POST /api/v1/guard/file-read
+POST /api/v1/guard/file-write
+POST /api/v1/guard/command-run</pre>
+        <p><b>策略配置</b></p>
+        <p>编辑 <code>policy.yaml</code> 定义角色权限，修改后重启服务生效。</p>
+      </div>
+    </div>
+    <div class="card">
+      <h3>常用测试</h3>
+      <div class="about-text">
+            <div class="card" id="aboutStatus">
+      <h3>📊 当前状态</h3>
+      <p class="about-text">加载中...</p>
+    </div>
+    
+    <table class="data-table">
+          <tr><th>场景</th><th>输入</th><th>预期结果</th></tr>
+          <tr><td>合法读文件</td><td><code>src/Main.java</code></td><td class="green">✅ 允许</td></tr>
+          <tr><td>路径穿越</td><td><code>../../etc/passwd</code></td><td class="red">❌ 拒绝</td></tr>
+          <tr><td>禁止参数</td><td><code>npm install -g express</code></td><td class="red">❌ 拒绝</td></tr>
+        </table>
+      </div>
+    </div>
+    <p class="info">DevPilot Sandbox v0.1.0 · Apache 2.0</p>
+  `;
+
+  loadAboutInfo();
+}
+
+// ── 角色管理 ──
+function showRoleForm(id) {
+  qs("roleForm").style.display = "block";
+  qs("rfId").value = ""; qs("rfId").readOnly = false;
+  qs("rfWk").value = ""; qs("rfCmd").value = ""; qs("rfPath").value = ""; qs("rfSize").value = ""; qs("rfRO").checked = false; qs("rfDF").value = ""; qs("rfGF").value = ""; qs("rfTO").value = ""; qs("rfCC").value = "";
+  qs("roleFormTitle").textContent = id ? "编辑角色" : "新建角色";
+  if (id) loadRoleForEdit(id);
+}
+function editRole(id) { showRoleForm(id); }
+
+async function loadRoleForEdit(id) {
+  try {
+    const r = await api("/api/v1/policy/roles/" + id);
+    qs("rfId").value = r.id; qs("rfId").readOnly = true;
+    qs("rfWk").value = r.workDir || "";
+    qs("rfCmd").value = (r.allowedCommands||[]).map(function(c) { return c.command + ":" + (c.subcommands||[]).join(","); }).join("|");
+    qs("rfPath").value = (r.allowedPaths||[]).join(",");
+    qs("rfSize").value = r.maxFileSizeMb || "";
+    qs("rfRO").checked = r.readonly === true;
+    qs("rfDF").value = (r.denyFiles||[]).join(",");
+    qs("rfGF").value = (r.globalDenyFlags||[]).join(",");
+    qs("rfTO").value = r.commandTimeoutSec || "";
+    qs("rfCC").value = r.maxConcurrency || "";
+  } catch(e) { alert("加载失败: " + e.message); }
+}
+
+async function saveRole() {
+  var id = qs("rfId").value.trim();
+  var wk = qs("rfWk").value.trim();
+  if (!id || !wk) { alert("请填写角色 ID 和工作目录"); return; }
+  var cmds = qs("rfCmd").value.split("|").filter(Boolean).map(function(s) {
+    var p = s.split(":");
+    return { command: p[0], subcommands: p[1] ? p[1].split(",").filter(Boolean) : [] };
+  });
+  var paths = qs("rfPath").value.split(",").filter(Boolean).map(function(s) { return s.trim(); });
+  var size = parseInt(qs("rfSize").value) || null;
+  try {
+    await api("/api/v1/policy/roles", { method: "PUT", body: JSON.stringify({
+      id: id, workDir: wk, allowedCommands: cmds, allowedPaths: paths.length>0 ? paths : ["."], maxFileSizeMb: size
+    })});
+    qs("roleForm").style.display = "none";
+    loadRoleList();
+  } catch(e) { alert("保存失败: " + e.message); }
+}
+
+async function deleteRole(id) {
+  if (!confirm("确定删除角色 " + id + " 吗？")) return;
+  try {
+    await api("/api/v1/policy/roles/" + id, { method: "DELETE" });
+    loadRoleList();
+  } catch(e) { alert("删除失败: " + e.message); }
+}
+
+
+function renderRoles() {
+  qs("pageContent").innerHTML = "<div class=\"loading\">加载中...</div>";
+  loadRoleList();
+}
+
+async function loadRoleList() {
+  try {
+    const roles = await api("/api/v1/policy/roles");
+    let rows = roles.map(r => {
+      const cmds = (r.allowedCommands||[]).map(c => c.command + ":" + (c.subcommands||[]).join(",")).join(" | ") || "—";
+      return "<tr><td>" + r.id + "</td><td class=\"path-cell\">" + r.workDir + "</td><td style=\"font-size:11px\">" + cmds + "</td>" +
+        "<td><button class=\"btn-sm\" onclick=\"editRole(\'" + r.id + "\')\">✏️</button> <button class=\"btn-sm\" onclick=\"deleteRole(\'" + r.id + "\')\">🗑️</button></td></tr>";
+    }).join("");
+    qs("pageContent").innerHTML = 
+      "<div style=\"display:flex;gap:8px;margin-bottom:16px\">" +
+        "<button class=\"btn\" onclick=\"showRoleForm(null)\">➕ 新建角色</button>" +
+        "<button class=\"btn-sm\" onclick=\"reloadPolicy()\">🔄 重载策略</button>" +
+        "<button class=\"btn-sm\" onclick=\"showVersions()\">📋 版本历史</button>" +
+        "<button class=\"btn-sm\" onclick=\"loadRoleList()\">🔄 刷新</button></div>" +
+      "<div id=\"roleForm\" style=\"display:none\" class=\"card\">" +
+        "<h3 id=\"roleFormTitle\">新建角色</h3>" +
+        "<div class=\"form-row\"><label>ID</label><input id=\"rfId\" class=\"input\" style=\"width:200px\" placeholder=\"MY_ROLE\"/></div>" +
+        "<div class=\"form-row\"><label>工作目录</label><input id=\"rfWk\" class=\"input\" style=\"width:300px\" placeholder=\"C:/project\"/></div>" +
+        "<div class=\"form-row\"><label>命令格式</label><span class=\"small\" style=\"color:#718096\">command:sub1,sub2|cmd2:sub1</span></div>" +
+        "<div class=\"form-row\"><label>命令</label><input id=\"rfCmd\" class=\"input\" style=\"width:400px\" placeholder=\"git:status,add|npm:install,run\"/></div>" +
+        "<div class=\"form-row\"><label>允许路径</label><input id=\"rfPath\" class=\"input\" style=\"width:300px\" placeholder=\". (逗号分隔)\"/></div>" +
+        "<div class=\"form-row\"><label>最大(MB)</label><input id=\"rfSize\" class=\"input\" style=\"width:80px\" placeholder=\"10\"/></div>" +
+        "<div class=\"btn-row\"><button class=\"btn\" onclick=\"saveRole()\">💾 保存</button>" +
+        " <button class=\"btn-sm\" onclick=\"qs(\'roleForm\').style.display=\'none\'\">取消</button></div></div>" +
+      "<div class=\"card\"><h3>角色列表</h3>" +
+        "<table class=\"data-table\"><tr><th>角色</th><th>工作目录</th><th>只读</th><th>禁止文件</th><th>全局标志</th><th>许可命令</th><th>操作</th></tr>" +
+        (rows || "<tr><td colspan=\"4\" class=\"hint\">暂无角色</td></tr>") + "</table></div>";
+  } catch(e) { qs("pageContent").innerHTML = "<div class=\"error\">❌ 加载失败: " + e.message + "</div>"; }
+}
+
+async function showVersions() {
+  try {
+    const v = await api("/api/v1/policy/versions");
+    let h = "<div id=\"versionCard\" class=\"card\" style=\"margin-top:12px\"><div class=\"card-header\"><h3>📋 版本历史</h3><button class=\"btn-sm\" onclick=\"var c=qs('versionCard');if(c)c.remove()\">✕ 关闭</button></div>";
+    if (v && v.length > 0) {
+      h += "<table class=\"data-table\"><tr><th>时间</th><th>描述</th><th></th></tr>";
+      v.forEach(function(x) {
+        var ts = x.timestamp ? new Date(x.timestamp).toLocaleString() : x.id;
+        h += "<tr><td>" + ts + "</td><td>" + (x.description||"-") + "</td><td><button class=\"btn-sm\" onclick=\"rollbackVersion('" + x.id + "')\">🔄 回滚</button></td></tr>";
+      });
+      h += "</table>";
+    } else { h += "<p class=\"hint\">暂无版本历史</p>"; }
+    h += "</div>";
+    var old = qs("versionCard"); if (old) old.remove();
+    qs("pageContent").insertAdjacentHTML("beforeend", h);
+  } catch(e) { alert("❌ " + e.message); }
+}
+
+async function rollbackVersion(id) {
+  if (!confirm("确定回滚到版本 " + id + " 吗？当前角色将被替换。")) return;
+  try {
+    var r = await api("/api/v1/policy/rollback/" + id, { method: "POST" });
+    alert("✅ 已回滚，当前 " + (r.roles||"?") + " 个角色");
+    loadRoleList();
+  } catch(e) { alert("❌ " + e.message); }
+}
+
+
+async function reloadPolicy() {
+  try {
+    const r = await api("/api/v1/policy/reload", { method: "POST" });
+    alert("✅ 策略已重载，当前 " + (r.roles || "?") + " 个角色");
+    loadRoleList();
+  } catch(e) { alert("重载失败: " + e.message); }
+}
+
+
+
+// ── 拦截统计 ──
+async function renderStats() {
+  var html = '<div><div class="card-header"><h3>🛡️ 拦截统计</h3></div>';
+  try {
+    var h = await api("/api/v1/guard/health");
+    var s = await api("/api/v1/guard/stats");
+    html += '<div style="display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap">' +
+      '<div class="card" style="flex:1;text-align:center;border-left:4px solid #409eff"><h4 style="font-size:12px;color:#909399">总请求</h4><p style="font-size:28px;font-weight:bold;margin:8px 0">'+(s.totalRequests||0)+'</p></div>' +
+      '<div class="card" style="flex:1;text-align:center;border-left:4px solid #f56c6c"><h4 style="font-size:12px;color:#909399">已拦截</h4><p style="font-size:28px;font-weight:bold;margin:8px 0;color:#f56c6c">'+(s.totalBlocked||0)+'</p></div>' +
+      '<div class="card" style="flex:1;text-align:center;border-left:4px solid #e94560"><h4 style="font-size:12px;color:#909399">拦截率</h4><p style="font-size:28px;font-weight:bold;margin:8px 0;color:#e94560">'+(s.blockedRate||"0%")+'</p></div>' +
+      '<div class="card" style="flex:1;text-align:center;border-left:4px solid #e6a23c"><h4 style="font-size:12px;color:#909399">服务状态</h4><p style="font-size:24px;font-weight:bold;margin:8px 0;color:#67c23a">'+h.status+'</p></div></div>';
+    
+    html += '<div class="card"><h3>🚫 内置危险命令黑名单</h3><p style="color:#a0aec0;font-size:13px;margin-bottom:12px">以下命令无论角色如何配置，均被内置拦截：</p>' +
+      '<div style="display:flex;flex-wrap:wrap;gap:6px;max-height:360px;overflow-y:auto;padding:8px;background:#0f3460;border-radius:6px">';
+    var dangerous = ["format","diskpart","shutdown","reg delete","regedit","sc stop","bcdedit","schtasks","takeown","icacls","net user","net stop","wmic delete","cipher","fsutil","powercfg","del /f","rmdir /s","rd /s","erase","rename","rm -rf","chmod 777","chown","dd","mkfs","sudo","su","passwd","kill -9","reboot","halt","poweroff","systemctl stop","mount","umount","init 0"];
+    dangerous.forEach(function(cmd) {
+      html += '<span style="background:#3a1a1a;color:#fc8181;padding:4px 10px;border-radius:4px;font-size:12px;font-family:monospace;border:1px solid #5a2a2a">🚫 ' + cmd + '</span>';
+    });
+    html += '</div></div>';
+    
+    // 按角色统计
+    html += '<div class="card"><h3>👥 各角色拦截统计</h3>';
+    if (s.blockedCommandsByRole && Object.keys(s.blockedCommandsByRole).length > 0) {
+      html += '<table class="data-table"><tr><th>角色</th><th>命令拦截</th><th>文件拦截</th></tr>';
+      var allRoles = {};
+      if (s.blockedCommandsByRole) Object.keys(s.blockedCommandsByRole).forEach(function(r) { allRoles[r] = true; });
+      if (s.blockedFilesByRole) Object.keys(s.blockedFilesByRole).forEach(function(r) { allRoles[r] = true; });
+      Object.keys(allRoles).forEach(function(r) {
+        var cmdCount = s.blockedCommandsByRole[r] || 0;
+        var fileCount = s.blockedFilesByRole[r] || 0;
+        html += '<tr><td><code>'+r+'</code></td><td><span style="color:#fc8181">'+cmdCount+' 次拦截</span></td><td><span style="color:#e6a23c">'+fileCount+' 次拦截</span></td></tr>';
+      });
+      html += '</table>';
+    } else {
+      html += '<p class="hint">暂无拦截数据，执行测试后再来查看</p>';
+    }
+    html += '</div>';
+
+    html += '<div class="card"><h3>📋 最近拦截记录</h3><div id="recentBlocks">加载中...</div></div>';
+    html += '</div>';
+    
+  } catch(e) {
+    html += '<div class="card"><p class="error">❌ 加载失败: ' + e.message + '</p></div>';
+  }
+  if (qs("pageContent")) qs("pageContent").innerHTML = html;
+  
+  // 异步加载最近拦截
+  try {
+    var r = await api("/api/v1/guard/audit?limit=10");
+    var entries = (r.entries||[]).map(function(e){try{return JSON.parse(e)}catch{return null}}).filter(Boolean);
+    var blocked = entries.filter(function(e){return e.allowed===false}).slice(0,10);
+    var el = qs("recentBlocks");
+    if (el) {
+      if (blocked.length === 0) {
+        el.innerHTML = '<p class="hint">暂无拦截记录</p>';
+      } else {
+        var tb = '<table class="data-table"><tr><th>时间</th><th>操作</th><th>角色</th><th>原因</th></tr>';
+        blocked.forEach(function(e) {
+          var ts = e.timestamp ? new Date(e.timestamp).toLocaleString('zh-CN') : '-';
+          tb += '<tr><td style="font-size:11px;color:#909399">'+ts+'</td><td>'+e.operation+'</td><td><code style="font-size:11px">'+(e.roleId||'-')+'</code></td><td style="font-size:12px;color:#fc8181">'+e.reason+'</td></tr>';
+        });
+        tb += '</table>';
+        el.innerHTML = tb;
+      }
+    }
+  } catch(e) {
+    var el2 = qs("recentBlocks");
+    if (el2) el2.innerHTML = '<p class="error">加载失败</p>';
+  }
+}
+
+// ── 初始化 ──
+switchPage("dashboard");
+
+
+async function loadAboutInfo() {
+  try {
+    var h = await api("/api/v1/guard/health");
+    var s = qs("aboutStatus");
+    if (s) {
+      var roles = (h.roles||[]).join(", ");
+      s.innerHTML = '<h3>📊 状态</h3><table class="data-table">' +
+        '<tr><td>状态</td><td style="font-weight:bold;color:#67c23a">' + h.status + '</td></tr>' +
+        '<tr><td>模式</td><td>' + (h.mode||"multi") + '</td></tr>' +
+        '<tr><td>版本</td><td>' + h.version + '</td></tr>' +
+        '<tr><td>角色</td><td>' + roles + '</td></tr>' +
+        '<tr><td>策略源</td><td style="font-size:12px">' + (h.policySource||"-") + '</td></tr></table>';
+    }
+  } catch(e) {
+    var se = qs("aboutStatus");
+    if (se) se.innerHTML = '<h3>📊 状态</h3><p style="color:#f56c6c">❌ 无法连接</p>';
+  }
+}
+
+// ── 系统配置 ──
+function renderConfig() {
+  qs("pageContent").innerHTML = `<div>
+    <div class="card-header"><h3>🔧 系统配置</h3></div>
+    <div class="btn-row">
+      <button onclick="loadConfig()" class="btn" style="background:#409eff;color:#fff">🔍 刷新</button>
+      <button onclick="downloadConfig()" class="btn-sm">📥 下载 YAML</button>
+      <button onclick="reloadPolicy()" class="btn-sm" style="background:#e6a23c;color:#fff">🔄 重载策略</button>
+    </div>
+    <div id="pConfig" class="card"><p class="hint">点击「刷新」加载配置</p></div>
+  </div>`;
+}
+
+async function loadConfig() {
+  qs("pConfig").innerHTML = '<div class="loading">加载中...</div>';
+  try {
+    var h = await api("/api/v1/guard/health");
+    var y = await api("/api/v1/policy/yaml");
+    var html = '<div style="display:flex;gap:12px;margin-bottom:16px">'
+      + '<div class="card" style="flex:1;text-align:center"><h4>状态</h4><p style="font-size:24px;font-weight:bold;color:#67c23a">' + h.status + '</p></div>'
+      + '<div class="card" style="flex:1;text-align:center"><h4>模式</h4><p style="font-size:24px;font-weight:bold">' + (h.mode||"multi") + '</p></div>'
+      + '<div class="card" style="flex:1;text-align:center"><h4>角色</h4><p style="font-size:24px;font-weight:bold">' + (h.roles||[]).length + '</p></div>'
+      + '<div class="card" style="flex:1;text-align:center"><h4>版本</h4><p style="font-size:18px">' + h.version + '</p></div></div>';
+    html += '<pre class="code-block" style="background:#1e1e1e;color:#d4d4d4;padding:16px;border-radius:8px;overflow:auto;max-height:500px;font-size:13px">' + escHtml(y) + '</pre>';
+    qs("pConfig").innerHTML = html;
+  } catch(e) {
+    qs("pConfig").innerHTML = '<div class="error">❌ 加载失败: ' + e.message + '</div>';
+  }
+}
+
+function downloadConfig() {
+  api("/api/v1/policy/yaml").then(function(y) {
+    var blob = new Blob([y], {type:"text/yaml;charset=utf-8"});
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement("a"); a.href = url; a.download = "policy-" + new Date().toISOString().slice(0,10) + ".yaml"; a.click();
+    URL.revokeObjectURL(url);
+  }).catch(function(e) { alert("下载失败: " + e.message); });
+}
+
+function escHtml(s) {
+  return (s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+}
+</script>
+</body>
+</html>

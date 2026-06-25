@@ -1,0 +1,156 @@
+{
+  "name": "devpilot-sandbox",
+  "displayName": "DevPilot Sandbox",
+  "description": "AI Agent security sandbox middleware - file & command permission checks",
+  "version": "0.2.1",
+  "publisher": "devpilot",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/devpilot/sandbox"
+  },
+  "engines": {
+    "vscode": "^1.80.0"
+  },
+  "categories": [
+    "Other",
+    "Linters"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "devpilot.checkFile",
+        "title": "DevPilot: Check file access"
+      },
+      {
+        "command": "devpilot.checkCommand",
+        "title": "DevPilot: Check command permission"
+      },
+      {
+        "command": "devpilot.quickTest",
+        "title": "DevPilot: Quick security test"
+      },
+      {
+        "command": "devpilot.showStatus",
+        "title": "DevPilot: Show sandbox status"
+      },
+      {
+        "command": "devpilot.openConsole",
+        "title": "DevPilot: Open web console"
+      },
+      {
+        "command": "devpilot.selectRole",
+        "title": "DevPilot: Select default role"
+      },
+      {
+        "command": "devpilot.refreshRoles",
+        "title": "DevPilot: Refresh role list"
+      },
+      {
+        "command": "devpilot.showOutput",
+        "title": "DevPilot: Show output log"
+      },
+      {
+        "command": "devpilot.showDangerousCommands",
+        "title": "DevPilot: Show dangerous commands list"
+      },
+      {
+        "command": "devpilot.showStats",
+        "title": "DevPilot: Show sandbox statistics"
+      },
+      {
+        "command": "devpilot.batchTest",
+        "title": "DevPilot: Batch test dangerous commands"
+      },
+      {
+        "command": "devpilot.showAuditLog",
+        "title": "DevPilot: Show audit log"
+      },
+      {
+        "command": "devpilot.checkFileWrite",
+        "title": "DevPilot: Check file write access"
+      },
+      {
+        "command": "devpilot.showRoleDetails",
+        "title": "DevPilot: Show role details"
+      },
+      {
+        "command": "devpilot.runDiagnostics",
+        "title": "DevPilot: Run diagnostics"
+      },
+      {
+        "command": "devpilot.exportAudit",
+        "title": "DevPilot: Export audit log"
+      },
+      {
+        "command": "devpilot.viewPolicy",
+        "title": "DevPilot: View policy YAML"
+      },
+      {
+        "command": "devpilot.startServer",
+        "title": "DevPilot: Start sandbox server"
+      }
+    ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "devpilot",
+          "title": "DevPilot Sandbox",
+          "icon": "assets/icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "devpilot": [
+        {
+          "type": "tree",
+          "id": "devpilotRoles",
+          "name": "Roles"
+        }
+      ]
+    },
+    "menus": {
+      "view/title": [
+        {
+          "command": "devpilot.refreshRoles",
+          "when": "view == devpilotRoles",
+          "group": "navigation"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "DevPilot Sandbox",
+      "properties": {
+        "devpilot.baseUrl": {
+          "type": "string",
+          "default": "http://127.0.0.1:9091",
+          "description": "Sandbox server URL"
+        },
+        "devpilot.defaultRole": {
+          "type": "string",
+          "default": "CODE_ENGINEER",
+          "description": "Default role ID"
+        },
+        "devpilot.autoCheck": {
+          "type": "boolean",
+          "default": true,
+          "description": "Auto-check on file open"
+        },
+        "devpilot.autoCheckOnSave": {
+          "type": "boolean",
+          "default": false,
+          "description": "Auto-check on file save"
+        },
+        "devpilot.serverJarPath": {
+          "type": "string",
+          "default": "",
+          "description": "Full path to sandbox server JAR (auto-start on VSCode startup)"
+        }
+      }
+    }
+  }
+}

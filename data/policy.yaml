@@ -1,0 +1,24 @@
+﻿roles:
+  - id: CODE_ENGINEER
+    work_dir: "/home/user/project"
+    allowed_commands:
+      - command: git
+        subcommands: [status, add, commit, pull, push]
+      - command: npm
+        subcommands: [install, ci, run, test]
+        deny_flags: ["-g", "--global"]
+      - command: pip
+        subcommands: [install, uninstall]
+        deny_flags: ["--target"]
+        require_env: ["VIRTUAL_ENV"]
+      - command: mvn
+        subcommands: [dependency:resolve, compile, test]
+    max_file_size_mb: 10
+  - id: DESKTOP_OPERATOR
+    work_dir: "/home/user/Desktop"
+    allowed_commands: []
+  - id: READONLY
+    work_dir: "/home/user"
+    allowed_commands:
+      - command: ls
+      - command: cat

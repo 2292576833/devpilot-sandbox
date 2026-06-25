@@ -1,0 +1,47 @@
+{
+  "name": "devpilot-sandbox",
+  "version": "0.2.0",
+  "description": "AI Agent 本地安全执行沙箱中间件 - 给 AI 钥匙而不是拆掉围墙",
+  "author": {
+    "name": "DevPilot",
+    "url": "https://github.com/devpilot/sandbox"
+  },
+  "homepage": "https://github.com/devpilot/sandbox",
+  "repository": "https://github.com/devpilot/sandbox",
+  "license": "Apache-2.0",
+  "keywords": [
+    "sandbox",
+    "security",
+    "ai-agent",
+    "permission-control",
+    "path-guard",
+    "command-guard"
+  ],
+  "skills": "./skills/",
+  "mcpServers": "./.mcp.json",
+  "interface": {
+    "displayName": "DevPilot Sandbox",
+    "shortDescription": "AI Agent 安全沙箱 - 文件/命令权限控制",
+    "longDescription": "DevPilot Sandbox 是一个面向 AI Agent 的本地安全执行沙箱中间件，提供基于角色和策略的文件、命令围栏。支持路径穿越防护、危险命令拦截、角色权限隔离、审计日志。\\n\\n核心特性：\\n- 44 个内置危险命令黑名单（format, rm -rf, sudo 等始终拦截）\\n- 路径穿越防护（防止 ../../ 逃逸）\\n- 角色权限隔离（不同角色不同工作区/命令）\\n- 审计日志（每次操作都记录）\\n- 拦截统计（实时查看拦截率）",
+    "developerName": "DevPilot",
+    "category": "Security",
+    "capabilities": [
+      "Interactive",
+      "Write",
+      "Security"
+    ],
+    "websiteURL": "https://github.com/devpilot/sandbox",
+    "privacyPolicyURL": "https://github.com/devpilot/sandbox",
+    "termsOfServiceURL": "https://github.com/devpilot/sandbox",
+    "defaultPrompt": [
+      "Check if rm -rf / is allowed by the security sandbox before executing.",
+      "Show me the latest blocked requests and sandbox interception statistics.",
+      "List all dangerous commands that are built into the security sandbox.",
+      "Check if a file can be safely read without path traversal attacks.",
+      "Verify a command is safe to run: check with the security sandbox first."
+    ],
+    "brandColor": "#E94560",
+    "composerIcon": "./assets/icon.svg",
+    "logo": "./assets/logo.svg"
+  }
+}

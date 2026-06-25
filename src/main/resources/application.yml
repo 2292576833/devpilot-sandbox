@@ -1,0 +1,42 @@
+# DevPilot Sandbox configuration
+
+# Server port (override via PORT env or --server.port)
+server:
+  servlet:
+    encoding:
+      charset: UTF-8
+      enabled: true
+      force: true
+  port: 9091
+
+sandbox:
+  # API authentication (empty = disabled, set a key to enable)
+  # When enabled, all API requests need X-API-Key header
+  api-key: ""
+
+  # JWT Authentication (disabled by default)
+  # Set enabled: true to require Bearer token for API requests
+  auth:
+    enabled: false
+    jwt-secret: devpilot-default-secret
+    token-expiry-hours: 24
+    username: admin
+    password: admin
+
+  # Policy configuration
+  # classpath:policy.yaml = bundled in JAR (restart to reload)
+  # /path/to/policy.yaml = external file (auto-reload via WatchService)
+  policy:
+    path: classpath:policy.yaml
+    reload-seconds: 0
+
+  # Audit log
+  audit:
+    path: logs/audit.jsonl
+    console: true
+    max-file-size-mb: 10
+    max-backups: 3
+
+logging:
+  level:
+    com.devpilot.sandbox: INFO

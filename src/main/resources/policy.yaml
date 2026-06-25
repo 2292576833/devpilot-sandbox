@@ -1,0 +1,59 @@
+# DevPilot Sandbox Policy Configuration
+# Supports both snake_case and camelCase keys
+
+mode: multi
+
+roles:
+  - id: CODE_ENGINEER
+    work_dir: "C:/Users/27736/project"
+    readonly: false
+    deny_files:
+      - ".env"
+      - ".git"
+      - "config.prod.yaml"
+    global_deny_flags: ["-g", "--global"]
+    allowed_paths:
+      - "."
+    denied_paths:
+      - ".git"
+    allowed_commands:
+      - command: git
+        subcommands: [status, add, commit, pull, push]
+      - command: npm
+        subcommands: [install, ci, run, test]
+        deny_flags: ["-g", "--global"]
+      - command: pip
+        subcommands: [install, uninstall]
+        deny_flags: ["--target"]
+        require_env: ["VIRTUAL_ENV"]
+      - command: mvn
+        subcommands: ["dependency:resolve", compile, test]
+    max_file_size_mb: 10
+    command_timeout_sec: 120
+    max_concurrency: 2
+
+  - id: DESKTOP_OPERATOR
+    work_dir: "C:/Users/27736/Desktop"
+    readonly: false
+    deny_files: []
+    global_deny_flags: []
+    allowed_paths:
+      - "."
+    denied_paths: []
+    allowed_commands: []
+    max_file_size_mb: 50
+    command_timeout_sec: 30
+    max_concurrency: 3
+
+  - id: READONLY
+    work_dir: "C:/Users/27736"
+    readonly: true
+    deny_files:
+      - ".env"
+    global_deny_flags: []
+    allowed_paths:
+      - "."
+    allowed_commands: []
+    max_file_size_mb: 5
+    command_timeout_sec: 10
+    max_concurrency: 1

@@ -1,0 +1,9 @@
+﻿{
+  "mcpServers": {
+    "devpilot-sandbox": {
+      "command": "start-mcp-server.bat",
+      "args": [],
+      "env": { "SANDBOX_URL": "http://127.0.0.1:9091" }
+    }
+  }
+}
