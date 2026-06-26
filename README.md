@@ -233,7 +233,6 @@ Apache 2.0
 
 
 
-爱发电
 
 
 
@@ -247,5 +246,4 @@ Apache 2.0
 
 
 
-<img width="571" height="572" alt="mm_facetoface_collect_qrcode_1782390475437" src="https://github.com/user-attachments/assets/c1123efa-b42a-48c4-80b2-5ac0c8e394f5" />
 
